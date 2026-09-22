@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from typing import Optional
-from pydantic import BaseModel
+from datetime import datetime
+from pydantic import BaseModel, ConfigDict
 
 
 class DepartmentBase(BaseModel):
@@ -16,6 +17,8 @@ class DepartmentCreate(DepartmentBase):
 
 class DepartmentOut(DepartmentBase):
     id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    employee_count: Optional[int] = 0
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
