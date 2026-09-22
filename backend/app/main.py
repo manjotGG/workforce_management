@@ -1,12 +1,18 @@
 from fastapi import FastAPI
 from sqlalchemy import text
 
-from app.core.database import engine
+from app.core.database import engine, init_db
 
 app = FastAPI(
     title="Rajdhani Workforce Management System",
     version="0.1.0",
 )
+
+
+@app.on_event("startup")
+def on_startup():
+    # Initialize DB tables if they are missing
+    init_db()
 
 
 @app.get("/")
