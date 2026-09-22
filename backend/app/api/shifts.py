@@ -4,14 +4,18 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.core.database import get_db
-from app.models import Shift, Employee, AuditLog
+from app.core.security import require_roles
+from app.models import Shift, Employee, AuditLog, UserRole, User
 from app.schemas.shift import ShiftCreate, ShiftOut
 
 router = APIRouter(prefix="/api/shifts", tags=["shifts"])
 
 
 @router.get("/", response_model=List[ShiftOut])
-def list_shifts(db: Session = Depends(get_db)):
+def list_shifts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.ATTENDANCE_OPERATOR)),
+):
     shifts = db.query(Shift).all()
     results = []
     for s in shifts:
@@ -23,7 +27,11 @@ def list_shifts(db: Session = Depends(get_db)):
 
 
 @router.get("/{shift_id}", response_model=ShiftOut)
-def get_shift(shift_id: int, db: Session = Depends(get_db)):
+def get_shift(
+    shift_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.ATTENDANCE_OPERATOR)),
+):
     obj = db.get(Shift, shift_id)
     if not obj:
         raise HTTPException(status_code=404, detail="Shift not found")
@@ -34,7 +42,11 @@ def get_shift(shift_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=ShiftOut, status_code=status.HTTP_201_CREATED)
-def create_shift(payload: ShiftCreate, db: Session = Depends(get_db)):
+def create_shift(
+    payload: ShiftCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN)),
+):
     exists = db.query(Shift).filter(Shift.name == payload.name).first()
     if exists:
         raise HTTPException(status_code=400, detail="Shift name already exists")
@@ -50,6 +62,7 @@ def create_shift(payload: ShiftCreate, db: Session = Depends(get_db)):
     db.refresh(obj)
 
     audit = AuditLog(
+        user_id=current_user.id,
         action="CREATE_SHIFT",
         entity_type="Shift",
         entity_id=str(obj.id),
@@ -64,7 +77,12 @@ def create_shift(payload: ShiftCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{shift_id}", response_model=ShiftOut)
-def update_shift(shift_id: int, payload: ShiftCreate, db: Session = Depends(get_db)):
+def update_shift(
+    shift_id: int,
+    payload: ShiftCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN)),
+):
     obj = db.get(Shift, shift_id)
     if not obj:
         raise HTTPException(status_code=404, detail="Shift not found")
@@ -80,6 +98,7 @@ def update_shift(shift_id: int, payload: ShiftCreate, db: Session = Depends(get_
     db.refresh(obj)
 
     audit = AuditLog(
+        user_id=current_user.id,
         action="UPDATE_SHIFT",
         entity_type="Shift",
         entity_id=str(obj.id),
@@ -95,7 +114,11 @@ def update_shift(shift_id: int, payload: ShiftCreate, db: Session = Depends(get_
 
 
 @router.delete("/{shift_id}")
-def delete_shift(shift_id: int, db: Session = Depends(get_db)):
+def delete_shift(
+    shift_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN)),
+):
     obj = db.get(Shift, shift_id)
     if not obj:
         raise HTTPException(status_code=404, detail="Shift not found")

@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import extract, and_
 
 from app.core.database import get_db
-from app.models import SalaryRecord, Employee, Attendance, AttendanceStatus, CalculationStatus, AuditLog
+from app.core.security import require_roles
+from app.models import SalaryRecord, Employee, Attendance, AttendanceStatus, CalculationStatus, AuditLog, UserRole, User
 from app.schemas.salary import (
     SalaryRecordOut,
     SalaryGenerateRequest,
@@ -24,6 +25,7 @@ def list_salary_records(
     employee_id: Optional[int] = Query(None),
     status_filter: Optional[CalculationStatus] = Query(None, alias="status"),
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.MANAGER)),
 ):
     query = db.query(SalaryRecord)
     if year:
@@ -51,14 +53,16 @@ def list_salary_records(
 
 
 @router.post("/generate", response_model=List[SalaryRecordOut])
-def generate_payroll(payload: SalaryGenerateRequest, db: Session = Depends(get_db)):
+def generate_payroll(
+    payload: SalaryGenerateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN)),
+):
     year = payload.salary_year
     month = payload.salary_month
 
-    # Get number of days in month
     _, total_days_in_month = calendar.monthrange(year, month)
 
-    # Query active employees
     emp_query = db.query(Employee).filter(Employee.is_active == True)
     if payload.department_id:
         emp_query = emp_query.filter(Employee.department_id == payload.department_id)
@@ -69,7 +73,6 @@ def generate_payroll(payload: SalaryGenerateRequest, db: Session = Depends(get_d
     for emp in employees:
         base_salary = emp.monthly_salary or Decimal("0.00")
 
-        # Get attendance records for this employee in specified month & year
         attendances = (
             db.query(Attendance)
             .filter(
@@ -88,14 +91,11 @@ def generate_payroll(payload: SalaryGenerateRequest, db: Session = Depends(get_d
         holiday_cnt = sum(1 for a in attendances if a.status == AttendanceStatus.HOLIDAY)
         weekly_off_cnt = sum(1 for a in attendances if a.status == AttendanceStatus.WEEKLY_OFF)
 
-        # Total payable days = present + (0.5 * half_day) + paid_leave + holiday + weekly_off
         payable_days = Decimal(str(present_cnt + (half_day_cnt * 0.5) + paid_leave_cnt + holiday_cnt + weekly_off_cnt))
 
-        # Daily rate = base_salary / total_days_in_month
         daily_rate = base_salary / Decimal(str(total_days_in_month)) if total_days_in_month > 0 else Decimal("0.00")
         calculated_final = (daily_rate * payable_days).quantize(Decimal("0.01"))
 
-        # Check existing record
         existing = (
             db.query(SalaryRecord)
             .filter(
@@ -118,6 +118,7 @@ def generate_payroll(payload: SalaryGenerateRequest, db: Session = Depends(get_d
             existing.final_salary = (calculated_final - (existing.deduction_amount or Decimal("0.00")) + (existing.adjustment_amount or Decimal("0.00"))).quantize(Decimal("0.01"))
             existing.calculation_status = CalculationStatus.CALCULATED
             existing.calculated_at = datetime.now()
+            existing.calculated_by = current_user.id
             db.add(existing)
             db.commit()
             db.refresh(existing)
@@ -140,6 +141,7 @@ def generate_payroll(payload: SalaryGenerateRequest, db: Session = Depends(get_d
                 final_salary=calculated_final,
                 calculation_status=CalculationStatus.CALCULATED,
                 calculated_at=datetime.now(),
+                calculated_by=current_user.id,
             )
             db.add(rec)
             db.commit()
@@ -152,8 +154,8 @@ def generate_payroll(payload: SalaryGenerateRequest, db: Session = Depends(get_d
             out.department_name = emp.department.name
         generated_records.append(out)
 
-    # Log action
     audit = AuditLog(
+        user_id=current_user.id,
         action="GENERATE_PAYROLL",
         entity_type="SalaryRecord",
         entity_id=f"{year}_{month}",
@@ -166,7 +168,12 @@ def generate_payroll(payload: SalaryGenerateRequest, db: Session = Depends(get_d
 
 
 @router.put("/{salary_id}", response_model=SalaryRecordOut)
-def update_salary_record(salary_id: int, payload: SalaryRecordUpdate, db: Session = Depends(get_db)):
+def update_salary_record(
+    salary_id: int,
+    payload: SalaryRecordUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN)),
+):
     rec = db.get(SalaryRecord, salary_id)
     if not rec:
         raise HTTPException(status_code=404, detail="Salary record not found")
@@ -178,7 +185,6 @@ def update_salary_record(salary_id: int, payload: SalaryRecordUpdate, db: Sessio
     if payload.calculation_status is not None:
         rec.calculation_status = payload.calculation_status
 
-    # Recalculate final salary
     total_days = rec.working_days or 30
     payable = (rec.present_days or 0) + (rec.paid_leave_days or 0) + (rec.holiday_days or 0) + (rec.weekly_off_days or 0)
     daily_rate = rec.base_monthly_salary / Decimal(str(total_days)) if total_days > 0 else Decimal("0.00")
@@ -190,6 +196,16 @@ def update_salary_record(salary_id: int, payload: SalaryRecordUpdate, db: Sessio
     db.commit()
     db.refresh(rec)
 
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="UPDATE_SALARY_RECORD",
+        entity_type="SalaryRecord",
+        entity_id=str(rec.id),
+        new_values={"final_salary": str(rec.final_salary)},
+    )
+    db.add(audit)
+    db.commit()
+
     out = SalaryRecordOut.model_validate(rec)
     if rec.employee:
         out.employee_name = rec.employee.name
@@ -200,7 +216,12 @@ def update_salary_record(salary_id: int, payload: SalaryRecordUpdate, db: Sessio
 
 
 @router.post("/{salary_id}/status", response_model=SalaryRecordOut)
-def change_salary_status(salary_id: int, status_val: CalculationStatus = Query(..., alias="status"), db: Session = Depends(get_db)):
+def change_salary_status(
+    salary_id: int,
+    status_val: CalculationStatus = Query(..., alias="status"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN)),
+):
     rec = db.get(SalaryRecord, salary_id)
     if not rec:
         raise HTTPException(status_code=404, detail="Salary record not found")
@@ -208,6 +229,16 @@ def change_salary_status(salary_id: int, status_val: CalculationStatus = Query(.
     db.add(rec)
     db.commit()
     db.refresh(rec)
+
+    audit = AuditLog(
+        user_id=current_user.id,
+        action="CHANGE_SALARY_STATUS",
+        entity_type="SalaryRecord",
+        entity_id=str(rec.id),
+        new_values={"status": status_val},
+    )
+    db.add(audit)
+    db.commit()
 
     out = SalaryRecordOut.model_validate(rec)
     if rec.employee:

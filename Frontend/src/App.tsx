@@ -265,6 +265,7 @@ export const App: React.FC = () => {
               employees={employees}
               departments={departments}
               shifts={shifts}
+              currentUserRole={currentUser?.role}
               onAddEmployee={handleAddEmployee}
               onUpdateEmployee={handleUpdateEmployee}
               onDeleteEmployee={handleDeleteEmployee}
@@ -275,6 +276,7 @@ export const App: React.FC = () => {
           {activeTab === 'departments' && (
             <DepartmentsPage
               departments={departments}
+              currentUserRole={currentUser?.role}
               onAddDepartment={handleAddDepartment}
               onUpdateDepartment={handleUpdateDepartment}
               onDeleteDepartment={handleDeleteDepartment}
@@ -284,6 +286,7 @@ export const App: React.FC = () => {
           {activeTab === 'shifts' && (
             <ShiftsPage
               shifts={shifts}
+              currentUserRole={currentUser?.role}
               onAddShift={handleAddShift}
               onUpdateShift={handleUpdateShift}
               onDeleteShift={handleDeleteShift}
@@ -296,6 +299,7 @@ export const App: React.FC = () => {
               employees={employees}
               departments={departments}
               selectedDate={attendanceDate}
+              currentUserRole={currentUser?.role}
               setSelectedDate={setAttendanceDate}
               onSaveAttendance={handleSaveAttendance}
               onBulkAttendance={handleBulkAttendance}
@@ -310,11 +314,13 @@ export const App: React.FC = () => {
               setSelectedYear={setSalaryYear}
               selectedMonth={salaryMonth}
               setSelectedMonth={setSalaryMonth}
+              currentUserRole={currentUser?.role}
               onGeneratePayroll={handleGeneratePayroll}
               onUpdateSalaryRecord={handleUpdateSalaryRecord}
               onUpdateSalaryStatus={handleUpdateSalaryStatus}
             />
           )}
+
 
           {activeTab === 'audit' && <AuditLogsPage auditLogs={auditLogs} />}
         </main>

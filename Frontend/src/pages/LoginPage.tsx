@@ -91,16 +91,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 text-center mb-2">
             Quick Test Accounts
           </p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => {
                 setUsername('admin');
                 setPassword('admin123');
               }}
-              className="py-2 px-3 bg-slate-900 hover:bg-slate-800 text-xs font-medium text-slate-300 rounded-xl border border-slate-800 text-center"
+              className="py-2 px-2 bg-slate-900 hover:bg-slate-800 text-[11px] font-medium text-slate-300 rounded-xl border border-slate-800 text-center truncate"
+              title="Admin (Full Access)"
             >
-              Admin Demo
+              Admin
             </button>
             <button
               type="button"
@@ -108,9 +109,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 setUsername('manager');
                 setPassword('manager123');
               }}
-              className="py-2 px-3 bg-slate-900 hover:bg-slate-800 text-xs font-medium text-slate-300 rounded-xl border border-slate-800 text-center"
+              className="py-2 px-2 bg-slate-900 hover:bg-slate-800 text-[11px] font-medium text-slate-300 rounded-xl border border-slate-800 text-center truncate"
+              title="Manager (Read Only)"
             >
-              Manager Demo
+              Manager
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setUsername('operator');
+                setPassword('operator123');
+              }}
+              className="py-2 px-2 bg-slate-900 hover:bg-slate-800 text-[11px] font-medium text-slate-300 rounded-xl border border-slate-800 text-center truncate"
+              title="Attendance Operator"
+            >
+              Operator
             </button>
           </div>
         </div>

@@ -23,6 +23,7 @@ interface EmployeesPageProps {
   employees: Employee[];
   departments: Department[];
   shifts: Shift[];
+  currentUserRole?: string;
   onAddEmployee: (data: Partial<Employee>) => Promise<void>;
   onUpdateEmployee: (id: number, data: Partial<Employee>) => Promise<void>;
   onDeleteEmployee: (id: number) => Promise<void>;
@@ -33,12 +34,16 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({
   employees,
   departments,
   shifts,
+  currentUserRole,
   onAddEmployee,
   onUpdateEmployee,
   onDeleteEmployee,
   onImportFile,
 }) => {
+  const isAdmin = currentUserRole === 'ADMIN';
+  const canImport = isAdmin || currentUserRole === 'ATTENDANCE_OPERATOR';
   const [searchTerm, setSearchTerm] = useState('');
+
   const [deptFilter, setDeptFilter] = useState<number | 'ALL'>('ALL');
   const [shiftFilter, setShiftFilter] = useState<number | 'ALL'>('ALL');
 
@@ -176,23 +181,35 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => {
-              setSelectedFile(null);
-              setImportResult(null);
-              setIsImportModalOpen(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-sm rounded-xl border border-slate-700 transition-all"
-          >
-            <Upload className="w-4 h-4 text-brand-400" /> Import CSV / XLSX
-          </button>
-          <button
-            onClick={handleOpenAddModal}
-            className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-brand-600/20"
-          >
-            <Plus className="w-4 h-4" /> Add New Employee
-          </button>
+          {!isAdmin && (
+            <span className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-semibold">
+              Read-Only Mode ({currentUserRole?.replace('_', ' ')})
+            </span>
+          )}
+
+          {canImport && (
+            <button
+              onClick={() => {
+                setSelectedFile(null);
+                setImportResult(null);
+                setIsImportModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-sm rounded-xl border border-slate-700 transition-all"
+            >
+              <Upload className="w-4 h-4 text-brand-400" /> Import CSV / XLSX
+            </button>
+          )}
+
+          {isAdmin && (
+            <button
+              onClick={handleOpenAddModal}
+              className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-brand-600/20"
+            >
+              <Plus className="w-4 h-4" /> Add New Employee
+            </button>
+          )}
         </div>
+
       </div>
 
       {/* Filters Bar */}
@@ -299,27 +316,32 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({
                   </td>
 
                   <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => handleOpenEditModal(emp)}
-                        className="p-2 rounded-lg text-slate-400 hover:text-brand-400 hover:bg-brand-500/10 transition-colors"
-                        title="Edit Employee"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={async () => {
-                          if (confirm(`Are you sure you want to deactivate ${emp.name}?`)) {
-                            await onDeleteEmployee(emp.id);
-                          }
-                        }}
-                        className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                        title="Deactivate Employee"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                    {isAdmin ? (
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleOpenEditModal(emp)}
+                          className="p-2 rounded-lg text-slate-400 hover:text-brand-400 hover:bg-brand-500/10 transition-colors"
+                          title="Edit Employee"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (confirm(`Are you sure you want to deactivate ${emp.name}?`)) {
+                              await onDeleteEmployee(emp.id);
+                            }
+                          }}
+                          className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                          title="Deactivate Employee"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-500 font-medium">Read Only</span>
+                    )}
                   </td>
+
                 </tr>
               ))}
 

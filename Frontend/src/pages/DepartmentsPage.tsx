@@ -5,6 +5,7 @@ import { Department } from '../types';
 
 interface DepartmentsPageProps {
   departments: Department[];
+  currentUserRole?: string;
   onAddDepartment: (data: Partial<Department>) => Promise<void>;
   onUpdateDepartment: (id: number, data: Partial<Department>) => Promise<void>;
   onDeleteDepartment: (id: number) => Promise<void>;
@@ -12,11 +13,14 @@ interface DepartmentsPageProps {
 
 export const DepartmentsPage: React.FC<DepartmentsPageProps> = ({
   departments,
+  currentUserRole,
   onAddDepartment,
   onUpdateDepartment,
   onDeleteDepartment,
 }) => {
+  const isAdmin = currentUserRole === 'ADMIN';
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
   const [editingDept, setEditingDept] = useState<Department | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -81,12 +85,18 @@ export const DepartmentsPage: React.FC<DepartmentsPageProps> = ({
           </div>
         </div>
 
-        <button
-          onClick={handleOpenAdd}
-          className="flex items-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-amber-600/20"
-        >
-          <Plus className="w-4 h-4" /> Add Department
-        </button>
+        {isAdmin ? (
+          <button
+            onClick={handleOpenAdd}
+            className="flex items-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-amber-600/20"
+          >
+            <Plus className="w-4 h-4" /> Add Department
+          </button>
+        ) : (
+          <span className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-semibold">
+            Read-Only Mode ({currentUserRole?.replace('_', ' ')})
+          </span>
+        )}
       </div>
 
       {/* Grid of Department Cards */}
@@ -101,29 +111,32 @@ export const DepartmentsPage: React.FC<DepartmentsPageProps> = ({
                 <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold text-lg">
                   {dept.name.charAt(0)}
                 </div>
-                <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => handleOpenEdit(dept)}
-                    className="p-2 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={async () => {
-                      if (confirm(`Are you sure you want to delete ${dept.name}?`)) {
-                        try {
-                          await onDeleteDepartment(dept.id);
-                        } catch (err: any) {
-                          alert(err.response?.data?.detail || 'Cannot delete department');
+                {isAdmin && (
+                  <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => handleOpenEdit(dept)}
+                      className="p-2 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (confirm(`Are you sure you want to delete ${dept.name}?`)) {
+                          try {
+                            await onDeleteDepartment(dept.id);
+                          } catch (err: any) {
+                            alert(err.response?.data?.detail || 'Cannot delete department');
+                          }
                         }
-                      }
-                    }}
-                    className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                      }}
+                      className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </div>
+
 
               <h3 className="text-lg font-bold text-slate-100 mt-4">{dept.name}</h3>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">

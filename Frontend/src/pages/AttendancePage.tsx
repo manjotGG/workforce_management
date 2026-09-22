@@ -8,6 +8,7 @@ interface AttendancePageProps {
   employees: Employee[];
   departments: Department[];
   selectedDate: string;
+  currentUserRole?: string;
   setSelectedDate: (date: string) => void;
   onSaveAttendance: (record: Partial<Attendance>) => Promise<void>;
   onBulkAttendance: (records: any[]) => Promise<void>;
@@ -18,11 +19,14 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
   employees,
   departments,
   selectedDate,
+  currentUserRole,
   setSelectedDate,
   onSaveAttendance,
   onBulkAttendance,
 }) => {
+  const canEdit = currentUserRole === 'ADMIN' || currentUserRole === 'ATTENDANCE_OPERATOR';
   const [deptFilter, setDeptFilter] = useState<number | 'ALL'>('ALL');
+
   const [search, setSearch] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -103,15 +107,22 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
             />
           </div>
 
-          <button
-            onClick={handleMarkAllPresent}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-emerald-600/20 disabled:opacity-50"
-          >
-            <CheckCircle className="w-4 h-4" /> Mark All Present
-          </button>
+          {canEdit ? (
+            <button
+              onClick={handleMarkAllPresent}
+              disabled={isSaving}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-emerald-600/20 disabled:opacity-50"
+            >
+              <CheckCircle className="w-4 h-4" /> Mark All Present
+            </button>
+          ) : (
+            <span className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-semibold">
+              Read-Only Mode ({currentUserRole?.replace('_', ' ')})
+            </span>
+          )}
         </div>
       </div>
+
 
       {/* Filter Bar */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

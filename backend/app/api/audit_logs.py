@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models import AuditLog
+from app.core.security import require_roles
+from app.models import AuditLog, UserRole, User
 from app.schemas.audit_log import AuditLogOut
 
 router = APIRouter(prefix="/api/audit-logs", tags=["audit-logs"])
@@ -16,6 +17,7 @@ def list_audit_logs(
     action: Optional[str] = Query(None),
     limit: int = Query(50, le=500),
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.MANAGER)),
 ):
     query = db.query(AuditLog)
     if user_id:

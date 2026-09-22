@@ -5,6 +5,7 @@ import { Shift } from '../types';
 
 interface ShiftsPageProps {
   shifts: Shift[];
+  currentUserRole?: string;
   onAddShift: (data: Partial<Shift>) => Promise<void>;
   onUpdateShift: (id: number, data: Partial<Shift>) => Promise<void>;
   onDeleteShift: (id: number) => Promise<void>;
@@ -12,11 +13,14 @@ interface ShiftsPageProps {
 
 export const ShiftsPage: React.FC<ShiftsPageProps> = ({
   shifts,
+  currentUserRole,
   onAddShift,
   onUpdateShift,
   onDeleteShift,
 }) => {
+  const isAdmin = currentUserRole === 'ADMIN';
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -103,12 +107,18 @@ export const ShiftsPage: React.FC<ShiftsPageProps> = ({
           </div>
         </div>
 
-        <button
-          onClick={handleOpenAdd}
-          className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-indigo-600/20"
-        >
-          <Plus className="w-4 h-4" /> Create Shift
-        </button>
+        {isAdmin ? (
+          <button
+            onClick={handleOpenAdd}
+            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-indigo-600/20"
+          >
+            <Plus className="w-4 h-4" /> Create Shift
+          </button>
+        ) : (
+          <span className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-semibold">
+            Read-Only Mode ({currentUserRole?.replace('_', ' ')})
+          </span>
+        )}
       </div>
 
       {/* Grid of Shifts */}
@@ -130,25 +140,28 @@ export const ShiftsPage: React.FC<ShiftsPageProps> = ({
                   {shift.is_overnight ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
                 </div>
 
-                <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => handleOpenEdit(shift)}
-                    className="p-2 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={async () => {
-                      if (confirm(`Are you sure you want to delete ${shift.name}?`)) {
-                        await onDeleteShift(shift.id);
-                      }
-                    }}
-                    className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                {isAdmin && (
+                  <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => handleOpenEdit(shift)}
+                      className="p-2 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (confirm(`Are you sure you want to delete ${shift.name}?`)) {
+                          await onDeleteShift(shift.id);
+                        }
+                      }}
+                      className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </div>
+
 
               <h3 className="text-lg font-bold text-slate-100 mt-4">{shift.name}</h3>
 

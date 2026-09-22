@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
 from app.core.database import get_db
-from app.models import Employee, Department, Shift, AuditLog
+from app.core.security import require_roles, get_current_user
+from app.models import Employee, Department, Shift, AuditLog, UserRole, User
 from app.schemas.employee import EmployeeCreate, EmployeeOut, EmployeeUpdate
 
 router = APIRouter(prefix="/api/employees", tags=["employees"])
@@ -26,6 +27,7 @@ def list_employees(
     is_active: Optional[bool] = Query(None),
     search: Optional[str] = Query(None),
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.ATTENDANCE_OPERATOR)),
 ):
     query = db.query(Employee)
 
@@ -51,7 +53,11 @@ def list_employees(
 
 
 @router.get("/{employee_id}", response_model=EmployeeOut)
-def get_employee(employee_id: int, db: Session = Depends(get_db)):
+def get_employee(
+    employee_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.ATTENDANCE_OPERATOR)),
+):
     obj = db.get(Employee, employee_id)
     if not obj:
         raise HTTPException(status_code=404, detail="Employee not found")
@@ -59,7 +65,11 @@ def get_employee(employee_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=EmployeeOut, status_code=status.HTTP_201_CREATED)
-def create_employee(payload: EmployeeCreate, db: Session = Depends(get_db)):
+def create_employee(
+    payload: EmployeeCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN)),
+):
     exists = db.query(Employee).filter(Employee.employee_id == payload.employee_id).first()
     if exists:
         raise HTTPException(status_code=400, detail="Employee ID already exists")
@@ -80,6 +90,7 @@ def create_employee(payload: EmployeeCreate, db: Session = Depends(get_db)):
     db.refresh(obj)
 
     audit = AuditLog(
+        user_id=current_user.id,
         action="CREATE_EMPLOYEE",
         entity_type="Employee",
         entity_id=str(obj.id),
@@ -92,13 +103,18 @@ def create_employee(payload: EmployeeCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{employee_id}", response_model=EmployeeOut)
-def update_employee(employee_id: int, payload: EmployeeUpdate, db: Session = Depends(get_db)):
+def update_employee(
+    employee_id: int,
+    payload: EmployeeUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN)),
+):
     obj = db.get(Employee, employee_id)
     if not obj:
         raise HTTPException(status_code=404, detail="Employee not found")
 
     update_data = payload.model_dump(exclude_unset=True)
-    
+
     if "department_id" in update_data and update_data["department_id"] is not None:
         dept = db.get(Department, update_data["department_id"])
         if not dept:
@@ -117,6 +133,7 @@ def update_employee(employee_id: int, payload: EmployeeUpdate, db: Session = Dep
     db.refresh(obj)
 
     audit = AuditLog(
+        user_id=current_user.id,
         action="UPDATE_EMPLOYEE",
         entity_type="Employee",
         entity_id=str(obj.id),
@@ -129,7 +146,11 @@ def update_employee(employee_id: int, payload: EmployeeUpdate, db: Session = Dep
 
 
 @router.delete("/{employee_id}")
-def delete_employee(employee_id: int, db: Session = Depends(get_db)):
+def delete_employee(
+    employee_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN)),
+):
     obj = db.get(Employee, employee_id)
     if not obj:
         raise HTTPException(status_code=404, detail="Employee not found")
@@ -138,6 +159,7 @@ def delete_employee(employee_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     audit = AuditLog(
+        user_id=current_user.id,
         action="DEACTIVATE_EMPLOYEE",
         entity_type="Employee",
         entity_id=str(obj.id),

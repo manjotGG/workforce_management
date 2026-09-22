@@ -2,10 +2,10 @@ from datetime import date, datetime
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from sqlalchemy import extract, and_
 
 from app.core.database import get_db
-from app.models import Attendance, Employee, Shift, AttendanceStatus, AuditLog
+from app.core.security import require_roles
+from app.models import Attendance, Employee, Shift, AttendanceStatus, AuditLog, UserRole, User
 from app.schemas.attendance import (
     AttendanceCreate,
     AttendanceUpdate,
@@ -25,6 +25,7 @@ def list_attendance(
     department_id: Optional[int] = Query(None),
     status_filter: Optional[AttendanceStatus] = Query(None, alias="status"),
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.ATTENDANCE_OPERATOR)),
 ):
     query = db.query(Attendance)
 
@@ -44,7 +45,6 @@ def list_attendance(
 
     records = query.order_by(Attendance.attendance_date.desc(), Attendance.id.desc()).all()
 
-    # Enrich output with employee details
     results = []
     for r in records:
         out = AttendanceOut.model_validate(r)
@@ -57,12 +57,15 @@ def list_attendance(
 
 
 @router.post("/", response_model=AttendanceOut, status_code=status.HTTP_201_CREATED)
-def create_or_update_attendance(payload: AttendanceCreate, db: Session = Depends(get_db)):
+def create_or_update_attendance(
+    payload: AttendanceCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.ATTENDANCE_OPERATOR)),
+):
     emp = db.get(Employee, payload.employee_id)
     if not emp:
         raise HTTPException(status_code=400, detail="Employee not found")
 
-    # check if record already exists for date
     existing = (
         db.query(Attendance)
         .filter(
@@ -99,8 +102,8 @@ def create_or_update_attendance(payload: AttendanceCreate, db: Session = Depends
         db.refresh(obj)
         target = obj
 
-    # Log audit action
     audit = AuditLog(
+        user_id=current_user.id,
         action="UPDATE_ATTENDANCE" if existing else "CREATE_ATTENDANCE",
         entity_type="Attendance",
         entity_id=str(target.id),
@@ -116,7 +119,11 @@ def create_or_update_attendance(payload: AttendanceCreate, db: Session = Depends
 
 
 @router.post("/bulk", status_code=status.HTTP_200_OK)
-def bulk_create_attendance(payload: AttendanceBulkCreate, db: Session = Depends(get_db)):
+def bulk_create_attendance(
+    payload: AttendanceBulkCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.ATTENDANCE_OPERATOR)),
+):
     count = 0
     for item in payload.records:
         existing = (
@@ -148,8 +155,8 @@ def bulk_create_attendance(payload: AttendanceBulkCreate, db: Session = Depends(
 
     db.commit()
 
-    # Audit log
     audit = AuditLog(
+        user_id=current_user.id,
         action="BULK_UPDATE_ATTENDANCE",
         entity_type="Attendance",
         entity_id=f"bulk_{count}",
@@ -162,7 +169,11 @@ def bulk_create_attendance(payload: AttendanceBulkCreate, db: Session = Depends(
 
 
 @router.delete("/{attendance_id}", status_code=status.HTTP_200_OK)
-def delete_attendance(attendance_id: int, db: Session = Depends(get_db)):
+def delete_attendance(
+    attendance_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.ATTENDANCE_OPERATOR)),
+):
     obj = db.get(Attendance, attendance_id)
     if not obj:
         raise HTTPException(status_code=404, detail="Attendance record not found")

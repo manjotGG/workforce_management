@@ -1,0 +1,167 @@
+RAJDHANI WORKFORCE MANAGEMENT — ACCESS RULES
+
+1. ADMIN
+- Can view all employees.
+- Can add employees.
+- Can edit employee information.
+- Can deactivate employees.
+- Can view all departments.
+- Can add/edit departments.
+- Can view all shifts.
+- Can add/edit shifts.
+- Can upload employee Excel/CSV files.
+- Can import attendance files.
+- Can view raw attendance records.
+- Can process attendance.
+- Can view and calculate salary.
+- Can view salary records.
+- Can manage users and their roles.
+- Can view audit logs.
+- Can perform all system management operations.
+
+IMPORTANT:
+Admin can VIEW and CHANGE data.
+Admin cannot bypass validation rules.
+Admin cannot directly delete important historical records.
+Employee deletion should mean DEACTIVATION, not physical deletion.
+
+
+2. MANAGER
+- Can VIEW all employees.
+- Can VIEW employee details.
+- Can VIEW departments.
+- Can VIEW shifts.
+- Can VIEW attendance.
+- Can VIEW attendance history.
+- Can VIEW salary information.
+- Can VIEW salary calculation details.
+- Can VIEW reports/dashboard.
+
+MANAGER CANNOT:
+- Add employees.
+- Edit employees.
+- Deactivate employees.
+- Delete employees.
+- Add/edit/delete departments.
+- Add/edit/delete shifts.
+- Upload employee files.
+- Import attendance files.
+- Modify attendance.
+- Calculate or modify salary.
+- Manage users.
+- Change roles.
+- Modify system settings.
+- Modify audit logs.
+
+IMPORTANT:
+Manager is strictly READ-ONLY.
+
+
+3. ATTENDANCE OPERATOR
+- Can VIEW employees only when required for attendance processing.
+- Can VIEW basic employee ID and name.
+- Can upload biometric attendance files.
+- Can process attendance files.
+- Can VIEW their own import results.
+- Can VIEW attendance processing errors.
+
+ATTENDANCE OPERATOR CANNOT:
+- Add employees.
+- Edit employees.
+- Deactivate employees.
+- Modify employee salary.
+- Modify departments.
+- Modify shifts.
+- Calculate salary.
+- Modify salary records.
+- Manage users.
+- Change roles.
+- Delete attendance history.
+
+
+4. GENERAL DATA RULES
+
+EMPLOYEES
+- employee_id must be unique.
+- Name is required.
+- Department must exist.
+- Shift must exist when assigned.
+- Salary cannot be negative.
+- Joining date must be valid.
+- Deactivated employees remain in the database for historical records.
+- Employee historical attendance and salary records must not be deleted when an employee is deactivated.
+
+
+ATTENDANCE
+- Attendance belongs to an employee and date.
+- One employee can have only one daily attendance record.
+- Raw biometric records must be preserved.
+- Imported attendance must not create duplicate records.
+- Attendance processing must be traceable to the original import.
+- Do not allow Manager to modify attendance.
+- Only authorized Admin/Attendance Operator can process attendance according to their permissions.
+
+
+SALARY
+- Salary information is sensitive.
+- Manager can VIEW salary but cannot modify it.
+- Attendance Operator cannot view or modify salary calculation unless explicitly required.
+- Admin can calculate and modify salary-related records.
+- Salary records should remain available for historical months.
+- Previous salary records must not be deleted just because an employee is deactivated.
+
+
+USERS
+- Only Admin can create users.
+- Only Admin can activate/deactivate users.
+- Only Admin can change user roles.
+- Users cannot change their own role.
+- Passwords must never be returned through APIs.
+- Passwords must never be stored as plaintext.
+
+
+AUDIT LOG
+- Important changes must be recorded.
+- Record who performed the action.
+- Record what was changed.
+- Record when it was changed.
+- Record the affected entity.
+- Normal users must not be able to modify or delete audit logs.
+
+
+5. API SECURITY
+
+Every protected API must check the logged-in user's role.
+
+ADMIN:
+READ + WRITE
+
+MANAGER:
+READ ONLY
+
+ATTENDANCE_OPERATOR:
+ATTENDANCE IMPORT + ATTENDANCE PROCESSING + LIMITED READ
+
+Unauthorised operation:
+Return HTTP 403 Forbidden.
+
+Unauthenticated request:
+Return HTTP 401 Unauthorized.
+
+
+6. IMPORTANT SECURITY RULE
+
+Frontend hiding a button is NOT security.
+
+The backend API itself must enforce all permissions.
+
+For example:
+Even if Manager manually calls:
+
+PUT /api/employees/1
+
+the backend must reject it with:
+
+403 Forbidden
+
+The same applies to salary, attendance, departments, shifts, users and audit logs.

@@ -1,13 +1,13 @@
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-
-from app.core.database import get_db
-from app.models import Employee, Department, Shift
-
 import csv
 import io
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.core.security import require_roles
+from app.models import Employee, Department, Shift, UserRole, User
 
 router = APIRouter(prefix="/api/employees", tags=["employees"])
 
@@ -21,7 +21,6 @@ def _parse_date(val: str | None) -> date | None:
             return datetime.strptime(val, fmt).date()
         except Exception:
             continue
-    # try ISO
     try:
         return datetime.fromisoformat(val).date()
     except Exception:
@@ -81,14 +80,17 @@ def _rows_from_xlsx_fileobj(fileobj):
 
 
 @router.post("/import", status_code=status.HTTP_200_OK)
-async def import_employees(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def import_employees(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.ATTENDANCE_OPERATOR)),
+):
     """Import employees from CSV or XLSX. Returns per-row success/failure summary."""
     filename = (file.filename or "").lower()
     if filename.endswith(".csv"):
         data = await file.read()
         rows_iter = _rows_from_csv_bytes(data)
     elif filename.endswith(('.xls', '.xlsx')):
-        # need to reset file pointer
         try:
             contents = await file.read()
             import io as _io

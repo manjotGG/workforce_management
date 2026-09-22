@@ -27,10 +27,24 @@ def seed():
     init_db()
     session = SessionLocal()
     try:
-        # Check if already seeded
+        # Ensure operator user exists
+        op_user = session.query(User).filter(User.username == "operator").first()
+        if not op_user:
+            op_user = User(
+                username="operator",
+                email="operator@example.com",
+                password_hash=_hash_pwd("operator123"),
+                role=UserRole.ATTENDANCE_OPERATOR,
+                is_active=True,
+            )
+            session.add(op_user)
+            session.commit()
+
+        # Check if departments already seeded
         if session.query(Department).first():
-            print("[Seed] Database already contains seed data.")
+            print("[Seed] Database already contains department seed data.")
             return
+
 
         print("[Seed] Starting initial database seeding...")
 
@@ -84,7 +98,17 @@ def seed():
         )
         session.add(manager_user)
 
+        operator_user = User(
+            username="operator",
+            email="operator@example.com",
+            password_hash=_hash_pwd("operator123"),
+            role=UserRole.ATTENDANCE_OPERATOR,
+            is_active=True,
+        )
+        session.add(operator_user)
+
         session.flush()
+
 
         # 4. Seed Employees
         emp_sample = [

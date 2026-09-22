@@ -22,6 +22,7 @@ interface SalaryPageProps {
   setSelectedYear: (y: number) => void;
   selectedMonth: number;
   setSelectedMonth: (m: number) => void;
+  currentUserRole?: string;
   onGeneratePayroll: (year: number, month: number, deptId?: number) => Promise<void>;
   onUpdateSalaryRecord: (id: number, data: any) => Promise<void>;
   onUpdateSalaryStatus: (id: number, status: CalculationStatus) => Promise<void>;
@@ -34,11 +35,14 @@ export const SalaryPage: React.FC<SalaryPageProps> = ({
   setSelectedYear,
   selectedMonth,
   setSelectedMonth,
+  currentUserRole,
   onGeneratePayroll,
   onUpdateSalaryRecord,
   onUpdateSalaryStatus,
 }) => {
+  const isAdmin = currentUserRole === 'ADMIN';
   const [deptFilter, setDeptFilter] = useState<number | 'ALL'>('ALL');
+
   const [statusFilter, setStatusFilter] = useState<CalculationStatus | 'ALL'>('ALL');
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -150,16 +154,23 @@ export const SalaryPage: React.FC<SalaryPageProps> = ({
             ))}
           </select>
 
-          <button
-            onClick={handleRunGenerate}
-            disabled={isGenerating}
-            className="flex items-center gap-2 px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-purple-600/20 disabled:opacity-50"
-          >
-            <Calculator className="w-4 h-4" />
-            {isGenerating ? 'Calculating...' : 'Generate Payroll'}
-          </button>
+          {isAdmin ? (
+            <button
+              onClick={handleRunGenerate}
+              disabled={isGenerating}
+              className="flex items-center gap-2 px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-purple-600/20 disabled:opacity-50"
+            >
+              <Calculator className="w-4 h-4" />
+              {isGenerating ? 'Calculating...' : 'Generate Payroll'}
+            </button>
+          ) : (
+            <span className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-semibold">
+              Read-Only Mode ({currentUserRole?.replace('_', ' ')})
+            </span>
+          )}
         </div>
       </div>
+
 
       {/* Summary Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -249,8 +260,7 @@ export const SalaryPage: React.FC<SalaryPageProps> = ({
 
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      {/* Workflow Actions */}
-                      {rec.calculation_status === 'CALCULATED' && (
+                      {isAdmin && rec.calculation_status === 'CALCULATED' && (
                         <button
                           onClick={() => onUpdateSalaryStatus(rec.id, 'APPROVED')}
                           className="px-2.5 py-1 rounded-lg bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 text-xs font-semibold border border-emerald-500/30"
@@ -259,7 +269,7 @@ export const SalaryPage: React.FC<SalaryPageProps> = ({
                         </button>
                       )}
 
-                      {rec.calculation_status === 'APPROVED' && (
+                      {isAdmin && rec.calculation_status === 'APPROVED' && (
                         <button
                           onClick={() => onUpdateSalaryStatus(rec.id, 'PAID')}
                           className="px-2.5 py-1 rounded-lg bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 text-xs font-semibold border border-purple-500/30"
@@ -268,13 +278,15 @@ export const SalaryPage: React.FC<SalaryPageProps> = ({
                         </button>
                       )}
 
-                      <button
-                        onClick={() => handleOpenEdit(rec)}
-                        className="p-2 rounded-lg text-slate-400 hover:text-purple-400 hover:bg-purple-500/10 transition-colors"
-                        title="Edit Deductions & Adjustments"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleOpenEdit(rec)}
+                          className="p-2 rounded-lg text-slate-400 hover:text-purple-400 hover:bg-purple-500/10 transition-colors"
+                          title="Edit Deductions & Adjustments"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      )}
 
                       <button
                         onClick={() => setPayslipRecord(rec)}
@@ -285,6 +297,7 @@ export const SalaryPage: React.FC<SalaryPageProps> = ({
                       </button>
                     </div>
                   </td>
+
                 </tr>
               ))}
 
