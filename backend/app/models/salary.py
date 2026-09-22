@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum as PyEnum
+import sqlalchemy as sa
 from sqlalchemy import (
     Column,
     Integer,

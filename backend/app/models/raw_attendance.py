@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import sqlalchemy as sa
 from sqlalchemy import (
     Column,
     Integer,
@@ -26,7 +27,7 @@ class RawAttendanceRecord(Base):
     punch_type: str | None = Column(String(50), nullable=True)
     source: str | None = Column(String(100), nullable=True)
     raw_data = Column(JSONB, nullable=True)
-    created_at: datetime = Column(DateTime(timezone=True), nullable=False, server_default="now()")
+    created_at: datetime = Column(DateTime(timezone=True), nullable=False, server_default=sa.text("now()"))
 
     attendance_import = relationship("AttendanceImport", back_populates="raw_records")
     employee = relationship("Employee", back_populates="raw_attendances")

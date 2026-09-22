@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+import sqlalchemy as sa
 from sqlalchemy import (
     Column,
     Integer,
@@ -29,8 +30,8 @@ class Employee(Base):
     monthly_salary: Numeric | None = Column(Numeric(12, 2), nullable=True)
     joining_date: date | None = Column(Date, nullable=True)
     is_active: bool = Column(Boolean, nullable=False, default=True, index=True)
-    created_at: datetime = Column(DateTime(timezone=True), nullable=False, server_default="now()")
-    updated_at: datetime = Column(DateTime(timezone=True), nullable=False, server_default="now()")
+    created_at: datetime = Column(DateTime(timezone=True), nullable=False, server_default=sa.text("now()"))
+    updated_at: datetime = Column(DateTime(timezone=True), nullable=False, server_default=sa.text("now()"))
 
     department = relationship("Department", back_populates="employees")
     shift = relationship("Shift", back_populates="employees")

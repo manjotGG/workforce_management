@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, date
 from enum import Enum as PyEnum
+import sqlalchemy as sa
 from sqlalchemy import (
     Column,
     Integer,
@@ -42,7 +43,7 @@ class Attendance(Base):
     shift_id: int | None = Column(Integer, ForeignKey("shifts.id", ondelete="SET NULL"), nullable=True)
     attendance_import_id: int | None = Column(Integer, ForeignKey("attendance_imports.id", ondelete="SET NULL"), nullable=True)
     remarks: str | None = Column(String(1000), nullable=True)
-    created_at: datetime = Column(DateTime(timezone=True), nullable=False, server_default="now()")
-    updated_at: datetime = Column(DateTime(timezone=True), nullable=False, server_default="now()")
+    created_at: datetime = Column(DateTime(timezone=True), nullable=False, server_default=sa.text("now()"))
+    updated_at: datetime = Column(DateTime(timezone=True), nullable=False, server_default=sa.text("now()"))
 
     employee = relationship("Employee", back_populates="attendances")

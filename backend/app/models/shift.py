@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, time
+import sqlalchemy as sa
 from sqlalchemy import Column, Integer, String, Time, Boolean, DateTime
 from sqlalchemy.orm import relationship
 
@@ -16,7 +17,7 @@ class Shift(Base):
     end_time: time = Column(Time(timezone=False), nullable=False)
     is_overnight: bool = Column(Boolean, nullable=False, default=False)
     is_active: bool = Column(Boolean, nullable=False, default=True)
-    created_at: datetime = Column(DateTime(timezone=True), nullable=False, server_default="now()")
-    updated_at: datetime = Column(DateTime(timezone=True), nullable=False, server_default="now()")
+    created_at: datetime = Column(DateTime(timezone=True), nullable=False, server_default=sa.text("now()"))
+    updated_at: datetime = Column(DateTime(timezone=True), nullable=False, server_default=sa.text("now()"))
 
     employees = relationship("Employee", back_populates="shift")

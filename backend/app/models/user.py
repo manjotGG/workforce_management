@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum as PyEnum
+import sqlalchemy as sa
 from sqlalchemy import (
     Column,
     Integer,
@@ -31,7 +32,7 @@ class User(Base):
     role: UserRole = Column(Enum(UserRole, name="user_role"), nullable=False)
     is_active: bool = Column(Boolean, nullable=False, default=True)
     last_login_at: datetime | None = Column(DateTime(timezone=True), nullable=True)
-    created_at: datetime = Column(DateTime(timezone=True), nullable=False, server_default="now()")
-    updated_at: datetime = Column(DateTime(timezone=True), nullable=False, server_default="now()")
+    created_at: datetime = Column(DateTime(timezone=True), nullable=False, server_default=sa.text("now()"))
+    updated_at: datetime = Column(DateTime(timezone=True), nullable=False, server_default=sa.text("now()"))
 
     attendance_imports = relationship("AttendanceImport", back_populates="uploaded_by_user")

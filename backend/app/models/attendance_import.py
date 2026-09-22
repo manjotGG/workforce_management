@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum as PyEnum
+import sqlalchemy as sa
 from sqlalchemy import (
     Column,
     Integer,
@@ -31,7 +32,7 @@ class AttendanceImport(Base):
     file_type: str | None = Column(String(50), nullable=True)
     file_hash: str | None = Column(String(128), nullable=True, index=True)
     uploaded_by: int | None = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    uploaded_at: datetime = Column(DateTime(timezone=True), nullable=False, server_default="now()")
+    uploaded_at: datetime = Column(DateTime(timezone=True), nullable=False, server_default=sa.text("now()"))
     processing_started_at: datetime | None = Column(DateTime(timezone=True), nullable=True)
     processing_completed_at: datetime | None = Column(DateTime(timezone=True), nullable=True)
     total_rows: int | None = Column(Integer, nullable=True)
