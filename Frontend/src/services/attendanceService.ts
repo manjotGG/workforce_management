@@ -37,6 +37,15 @@ export const attendanceService = {
     return res.data;
   },
 
+  importFile: async (file: File): Promise<any> => {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await apiClient.post('/attendance/import_file', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data;
+  },
+
   delete: async (id: number): Promise<void> => {
     await apiClient.delete(`/attendance/${id}`);
   },

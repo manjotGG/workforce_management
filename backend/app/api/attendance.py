@@ -16,6 +16,40 @@ from app.schemas.attendance import (
 router = APIRouter(prefix="/api/attendance", tags=["attendance"])
 
 
+@router.get("/employee/{identifier}", response_model=List[AttendanceOut])
+def get_attendance_for_employee(
+    identifier: str,
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.ATTENDANCE_OPERATOR)),
+):
+    """Fetch attendance for a specific employee by employee code or numeric id within an optional date range."""
+    # try numeric id first
+    emp = None
+    if identifier.isdigit():
+        emp = db.get(Employee, int(identifier))
+    if not emp:
+        emp = db.query(Employee).filter(Employee.employee_id == identifier).first()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    query = db.query(Attendance).filter(Attendance.employee_id == emp.id)
+    if start_date:
+        query = query.filter(Attendance.attendance_date >= start_date)
+    if end_date:
+        query = query.filter(Attendance.attendance_date <= end_date)
+
+    records = query.order_by(Attendance.attendance_date.asc()).all()
+    results = []
+    for r in records:
+        out = AttendanceOut.model_validate(r)
+        out.employee_name = r.employee.name if r.employee else None
+        out.employee_code = r.employee.employee_id if r.employee else None
+        results.append(out)
+    return results
+
+
 @router.get("/", response_model=List[AttendanceOut])
 def list_attendance(
     attendance_date: Optional[date] = Query(None),

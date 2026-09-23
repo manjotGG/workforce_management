@@ -17,7 +17,9 @@ import {
 } from 'lucide-react';
 import { Modal } from '../components/Modal';
 import { StatusBadge } from '../components/StatusBadge';
+import { EmployeeAttendanceView } from './EmployeeAttendanceView';
 import { Employee, Department, Shift } from '../types';
+import { employeeService } from '../services/employeeService';
 
 interface EmployeesPageProps {
   employees: Employee[];
@@ -43,6 +45,8 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({
   const isAdmin = currentUserRole === 'ADMIN';
   const canImport = isAdmin || currentUserRole === 'ATTENDANCE_OPERATOR';
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [selectAll, setSelectAll] = useState(false);
 
   const [deptFilter, setDeptFilter] = useState<number | 'ALL'>('ALL');
   const [shiftFilter, setShiftFilter] = useState<number | 'ALL'>('ALL');
@@ -51,6 +55,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [viewingEmployeeId, setViewingEmployeeId] = useState<number | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [importResult, setImportResult] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -157,7 +162,10 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({
     if (!selectedFile) return;
     setIsSubmitting(true);
     try {
-      const res = await onImportFile(selectedFile);
+      // prefer provided handler, otherwise call attendanceService.importFile directly
+      const res = onImportFile
+        ? await onImportFile(selectedFile)
+        : await (await import('../services/attendanceService')).attendanceService.importFile(selectedFile);
       setImportResult(res);
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Failed to import file');
@@ -200,12 +208,50 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({
             </button>
           )}
 
-          {isAdmin && (
+            {isAdmin && (
+              <button
+                onClick={handleOpenAddModal}
+                className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-brand-600/20"
+              >
+                <Plus className="w-4 h-4" /> Add New Employee
+              </button>
+            )}
+            {isAdmin && selectedIds.length > 0 && (
+              <button
+                onClick={async () => {
+                  if (!confirm(`Delete ${selectedIds.length} selected employees and ALL their data? This is irreversible.`)) return;
+                  try {
+                    await employeeService.bulkDelete(selectedIds);
+                    // clear selection and refresh
+                    setSelectedIds([]);
+                    setSelectAll(false);
+                    window.location.reload();
+                  } catch (err: any) {
+                    alert(err.response?.data?.detail || 'Failed to delete selected employees');
+                  }
+                }}
+                className="flex items-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-semibold text-sm rounded-xl transition-all"
+              >
+                <Trash2 className="w-4 h-4" /> Delete Selected
+              </button>
+            )}
+          {isAdmin && selectedIds.length > 0 && (
             <button
-              onClick={handleOpenAddModal}
-              className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-brand-600/20"
+              onClick={async () => {
+                if (!confirm(`Delete ${selectedIds.length} selected employees and ALL their data? This is irreversible.`)) return;
+                try {
+                  await employeeService.bulkDelete(selectedIds);
+                  // clear selection and refresh
+                  setSelectedIds([]);
+                  setSelectAll(false);
+                  window.location.reload();
+                } catch (err: any) {
+                  alert(err.response?.data?.detail || 'Failed to delete selected employees');
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-semibold text-sm rounded-xl transition-all"
             >
-              <Plus className="w-4 h-4" /> Add New Employee
+              <Trash2 className="w-4 h-4" /> Delete Selected
             </button>
           )}
         </div>
@@ -279,6 +325,16 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({
               {filteredEmployees.map((emp) => (
                 <tr key={emp.id} className="hover:bg-slate-900/50 transition-colors">
                   <td className="px-6 py-4">
+                    {isAdmin && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(emp.id)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setSelectedIds((prev) => (checked ? [...prev, emp.id] : prev.filter((id) => id !== emp.id)));
+                        }}
+                      />
+                    )}
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-600 flex items-center justify-center font-bold text-white shadow-md">
                         {emp.name.charAt(0)}
@@ -318,6 +374,13 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({
                   <td className="px-6 py-4 text-right">
                     {isAdmin ? (
                       <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => setViewingEmployeeId(emp.id)}
+                          className="p-2 rounded-lg text-slate-400 hover:text-brand-400 hover:bg-brand-500/10 transition-colors"
+                          title="View Attendance"
+                        >
+                          <Clock className="w-4 h-4" />
+                        </button>
                         <button
                           onClick={() => handleOpenEditModal(emp)}
                           className="p-2 rounded-lg text-slate-400 hover:text-brand-400 hover:bg-brand-500/10 transition-colors"
@@ -476,6 +539,18 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Individual Attendance Modal */}
+      <Modal isOpen={!!viewingEmployeeId} onClose={() => setViewingEmployeeId(null)} title="Employee Attendance">
+        <div className="p-2">
+          <React.Suspense fallback={<div>Loading...</div>}>
+            {/* Lazy load to keep bundle small */}
+            {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
+            {/* @ts-ignore */}
+            <EmployeeAttendanceView employees={employees} employeeId={viewingEmployeeId || undefined} />
+          </React.Suspense>
+        </div>
       </Modal>
 
       {/* Edit Employee Modal */}

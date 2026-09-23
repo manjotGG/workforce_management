@@ -40,6 +40,11 @@ export const employeeService = {
     await apiClient.delete(`/employees/${id}`);
   },
 
+  bulkDelete: async (ids: number[]): Promise<any> => {
+    const res = await apiClient.post('/employees/bulk_delete', { employee_ids: ids });
+    return res.data;
+  },
+
   importFile: async (file: File): Promise<ImportSummary> => {
     const formData = new FormData();
     formData.append('file', file);

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { CalendarCheck, Calendar, Filter, Save, CheckCircle, Clock, Search } from 'lucide-react';
+import { EmployeeAttendanceView } from './EmployeeAttendanceView';
+import { Modal } from '../components/Modal';
 import { StatusBadge } from '../components/StatusBadge';
 import { Employee, Department, Attendance, AttendanceStatus } from '../types';
 
@@ -26,6 +28,14 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
 }) => {
   const canEdit = currentUserRole === 'ADMIN' || currentUserRole === 'ATTENDANCE_OPERATOR';
   const [deptFilter, setDeptFilter] = useState<number | 'ALL'>('ALL');
+
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
+  const [startDate, setStartDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 6);
+    return d.toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
 
   const [search, setSearch] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -209,14 +219,22 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
                     </td>
 
                     <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => handleQuickSaveRow(emp)}
-                        disabled={isSaving}
-                        className="p-2 rounded-xl bg-slate-800 hover:bg-emerald-600 text-slate-300 hover:text-white transition-all border border-slate-700 hover:border-emerald-500"
-                        title="Save Attendance"
-                      >
-                        <Save className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => setSelectedEmployeeId(selectedEmployeeId === emp.id ? null : emp.id)}
+                          className="px-3 py-2 bg-slate-800 rounded text-slate-200"
+                        >
+                          {selectedEmployeeId === emp.id ? 'Close' : 'View'}
+                        </button>
+                        <button
+                          onClick={() => handleQuickSaveRow(emp)}
+                          disabled={isSaving}
+                          className="p-2 rounded-xl bg-slate-800 hover:bg-emerald-600 text-slate-300 hover:text-white transition-all border border-slate-700 hover:border-emerald-500"
+                          title="Save Attendance"
+                        >
+                          <Save className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -233,6 +251,12 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({
           </table>
         </div>
       </div>
+      {/* Individual Employee Attendance Modal */}
+      <Modal isOpen={!!selectedEmployeeId} onClose={() => setSelectedEmployeeId(null)} title="Employee Attendance">
+        <div className="p-2">
+          <EmployeeAttendanceView employees={employees} employeeId={selectedEmployeeId || undefined} startDate={startDate} endDate={endDate} />
+        </div>
+      </Modal>
     </div>
   );
 };

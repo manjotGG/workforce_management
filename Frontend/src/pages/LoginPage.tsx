@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, User as UserIcon, Sparkles, ArrowRight } from 'lucide-react';
+import { Lock, User as UserIcon, Sparkles, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 interface LoginPageProps {
   onLogin: (username: string, pwd: string) => Promise<void>;
@@ -8,6 +8,7 @@ interface LoginPageProps {
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('admin123');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -68,12 +69,23 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             <div className="relative">
               <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 text-sm focus:border-brand-500 focus:outline-none"
+                className="w-full pl-10 pr-12 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 text-sm focus:border-brand-500 focus:outline-none"
               />
+
+              <button
+                type="button"
+                aria-pressed={showPassword}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                onClick={() => setShowPassword((s) => !s)}
+                onMouseDown={(e) => e.preventDefault()}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-1 rounded"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 

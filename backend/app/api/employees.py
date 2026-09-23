@@ -2,10 +2,13 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
+from fastapi import Body
+from datetime import datetime
 
 from app.core.database import get_db
 from app.core.security import require_roles, get_current_user
 from app.models import Employee, Department, Shift, AuditLog, UserRole, User
+from app.models import RawAttendanceRecord, SalaryRecord
 from app.schemas.employee import EmployeeCreate, EmployeeOut, EmployeeUpdate
 
 router = APIRouter(prefix="/api/employees", tags=["employees"])
@@ -169,3 +172,58 @@ def delete_employee(
     db.commit()
 
     return {"status": "deactivated"}
+
+
+@router.post("/bulk_delete")
+def bulk_delete_employees(
+    employee_ids: List[int] = Body(..., embed=True),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.ADMIN)),
+):
+    """Permanently delete multiple employees and their related data.
+
+    Note: This will delete attendances, salary records, and raw attendance records for the given employee ids.
+    """
+    if not employee_ids:
+        raise HTTPException(status_code=400, detail="employee_ids is required")
+
+    # collect summary
+    deleted_summary = {}
+    ts = datetime.utcnow().isoformat()
+
+    try:
+        # delete raw attendance records (they use SET NULL on employee FK)
+        ra_q = db.query(RawAttendanceRecord).filter(RawAttendanceRecord.employee_id.in_(employee_ids))
+        deleted_summary['raw_attendance_records'] = ra_q.count()
+        ra_q.delete(synchronize_session=False)
+
+        # delete salary records (CASCADE if employee deleted, but remove explicitly)
+        try:
+            sr_q = db.query(SalaryRecord).filter(SalaryRecord.employee_id.in_(employee_ids))
+            deleted_summary['salary_records'] = sr_q.count()
+            sr_q.delete(synchronize_session=False)
+        except Exception:
+            # SalaryRecord may not be present in some DB dialects
+            deleted_summary['salary_records'] = 0
+
+        # finally delete employees (this will cascade-delete attendance and other CASCADE FKs)
+        emp_q = db.query(Employee).filter(Employee.id.in_(employee_ids))
+        deleted_summary['employees'] = emp_q.count()
+        emp_q.delete(synchronize_session=False)
+
+        # write an audit log for the bulk delete
+        audit = AuditLog(
+            user_id=current_user.id,
+            action="BULK_DELETE_EMPLOYEES",
+            entity_type="Employee",
+            entity_id=','.join(str(i) for i in employee_ids),
+            new_values={"deleted_ids": employee_ids, "summary": deleted_summary, "timestamp": ts},
+        )
+        db.add(audit)
+
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete employees: {str(e)}")
+
+    return {"status": "deleted", "summary": deleted_summary}

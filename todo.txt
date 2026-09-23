@@ -1,0 +1,250 @@
+RAJDHANI WORKFORCE MANAGEMENT
+TODO — INDIVIDUAL EMPLOYEE ATTENDANCE
+
+☐ 1. Create a new "Attendance" tab in the application
+    - Add Attendance as a separate navigation/tab in the UI.
+    - Keep the existing UI and navigation unchanged.
+    - Use the existing design style of the application.
+
+☐ 2. Create an employee attendance search
+    - Allow the user to search an employee by:
+        • Employee Name
+        • Employee ID
+    - Show matching employees.
+    - User can select one employee.
+    - After selecting the employee, display only that employee's attendance.
+
+☐ 3. Display employee information
+    At the top of the Attendance tab show:
+        • Employee Name
+        • Employee ID
+        • Department
+        • Designation
+        • Current Shift
+
+☐ 4. Display attendance data
+    Show the employee's attendance in a table.
+
+    Columns:
+        • Date
+        • First In
+        • Last Out
+        • Worked Hours / Minutes
+        • Status
+        • Remarks
+
+    Example:
+
+    Date          First In     Last Out     Worked Time    Status
+    01-09-2026    08:58 AM     05:32 PM     8h 34m         PRESENT
+    02-09-2026    09:05 AM     05:30 PM     8h 25m         PRESENT
+    03-09-2026    --           --           --              ABSENT
+
+
+☐ 5. Add date filters
+    Allow the user to select the attendance period.
+
+    Quick filters:
+        • Last 7 Days
+        • Last 30 Days
+        • This Month
+        • Previous Month
+        • Custom Date Range
+
+    The table must update according to the selected date range.
+
+
+☐ 6. Add attendance summary
+    For the selected employee and selected date range, display:
+
+        • Total Working Days
+        • Present Days
+        • Absent Days
+        • Leave Days
+        • Holidays
+        • Weekly Offs
+        • Attendance Percentage
+
+    Example:
+
+        Present: 24
+        Absent: 2
+        Leave: 1
+        Attendance: 88.9%
+
+
+☐ 7. Attendance Excel/CSV → Database
+    When an authorized user uploads an attendance Excel/CSV file:
+
+        Excel/CSV
+             ↓
+        Backend
+             ↓
+        Validate Employee ID
+             ↓
+        Process Attendance
+             ↓
+        Save to PostgreSQL
+             ↓
+        Attendance Tab reads from PostgreSQL
+             ↓
+        Display attendance in UI
+
+    IMPORTANT:
+    - Attendance must actually be inserted into the existing PostgreSQL database.
+    - Do NOT use the Excel file itself as the data source for the Attendance tab.
+    - PostgreSQL must be the source of truth.
+    - Refreshing the page must not remove attendance data.
+
+
+☐ 8. Use the existing attendance database table
+    Use the existing:
+
+        attendance
+
+    table for processed daily attendance.
+
+    Use the existing:
+
+        raw_attendance_records
+
+    table for raw biometric/imported punch data where applicable.
+
+    Do NOT create unnecessary duplicate attendance tables.
+
+
+☐ 9. Prevent duplicate attendance
+    For the same:
+
+        Employee + Attendance Date
+
+    there must be only one processed attendance record.
+
+    If the same Excel file is uploaded twice:
+        - Do not create duplicate attendance.
+        - Handle it safely.
+        - Return a clear import result.
+
+
+☐ 10. Create/use backend API
+    Provide an API for retrieving individual employee attendance.
+
+    Example:
+
+        GET /api/attendance/employee/{employee_id}
+
+    Support filters:
+
+        start_date
+        end_date
+
+    Example:
+
+        GET /api/attendance/employee/RMT001
+            ?start_date=2026-09-01
+            &end_date=2026-09-30
+
+
+☐ 11. Database query optimization
+    Do not load the entire attendance database into the frontend.
+
+    The backend should query only:
+        - Selected employee
+        - Selected date range
+
+    Example:
+        Employee = RMT001
+        Date = 01-09-2026 → 30-09-2026
+
+    Only those records should be returned.
+
+
+☐ 12. Role permissions
+
+    ADMIN:
+        ✓ View attendance
+        ✓ Upload/process attendance
+        ✓ Access individual employee attendance
+
+    MANAGER:
+        ✓ View attendance
+        ✓ Search employees
+        ✓ View individual attendance
+        ✗ Cannot modify attendance
+        ✗ Cannot upload attendance
+
+    ATTENDANCE OPERATOR:
+        ✓ Upload attendance
+        ✓ Process attendance
+        ✓ View attendance required for their work
+        ✗ Cannot modify employee master data
+        ✗ Cannot modify salary
+
+
+☐ 13. Backend security
+    Do not rely only on hiding buttons in the frontend.
+
+    Backend must enforce permissions.
+
+    Unauthorized modification request:
+        → HTTP 403 Forbidden
+
+
+☐ 14. UI states
+    Attendance tab must properly handle:
+
+        • Loading
+        • No employee selected
+        • Employee not found
+        • No attendance for selected period
+        • Successful attendance data
+        • API/database error
+
+
+☐ 15. Verify database integration
+
+    After uploading an attendance Excel file:
+
+        1. Upload file.
+        2. Backend processes file.
+        3. PostgreSQL attendance table is updated.
+        4. Search employee.
+        5. Open Attendance tab.
+        6. Select date range.
+        7. Attendance appears.
+        8. Refresh browser.
+        9. Attendance is still visible.
+
+
+☐ 16. Final testing
+
+    Test with multiple employees.
+
+    Test:
+        ✓ Employee with complete attendance
+        ✓ Employee with absent days
+        ✓ Employee with missing punches
+        ✓ Employee with multiple days
+        ✓ Last 7 days
+        ✓ Last 30 days
+        ✓ This month
+        ✓ Custom date range
+        ✓ Duplicate Excel upload
+        ✓ Invalid employee ID
+        ✓ Manager read-only access
+        ✓ Admin access
+
+    Confirm that UI data matches PostgreSQL data.
+
+
+IMPORTANT IMPLEMENTATION RULES:
+
+- Keep the implementation simple.
+- Reuse existing FastAPI, SQLAlchemy and PostgreSQL setup.
+- Do not introduce unnecessary architecture.
+- Do not create unnecessary database tables.
+- Do not rebuild existing employee functionality.
+- Do not break the existing login system.
+- Do not break existing employee import.
+- PostgreSQL must be the source of truth for attendance.
+- The Attendance tab must display data retrieved from the backend/database.
